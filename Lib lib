@@ -837,12 +837,11 @@ function Library.CreateLib(title, themeName)
             FlyVelocity.VectorVelocity = direction * 55
 
             -- Full body follows camera direction
-FlyGyro.CFrame = CFrame.lookAt(
-    root.Position,
-    root.Position + camera.CFrame.LookVector,
-    camera.CFrame.UpVector
-)
-            end
+        FlyGyro.CFrame = CFrame.lookAt(
+            root.Position,
+             root.Position + camera.CFrame.LookVector,
+            camera.CFrame.UpVector
+            )            
         end)
     end
 
