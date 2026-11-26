@@ -1,725 +1,917 @@
 
---==================================================
+--========================================================
 -- ZTE HUB | CYBER UI LIBRARY
--- FIXED VERSION 1.0
---==================================================
+-- Version 1.0
+-- For your own Roblox experience
+--========================================================
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local TeleportService = game:GetService("TeleportService")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
 local Library = {}
 
+--========================================================
+-- THEME
+--========================================================
+
 local Theme = {
-    Background = Color3.fromRGB(10, 12, 22),
-    Sidebar = Color3.fromRGB(14, 18, 32),
-    Panel = Color3.fromRGB(19, 24, 42),
-    Element = Color3.fromRGB(25, 32, 55),
-    Blue = Color3.fromRGB(0, 170, 255),
-    Purple = Color3.fromRGB(145, 70, 255),
-    Text = Color3.fromRGB(240, 245, 255),
-    SubText = Color3.fromRGB(135, 150, 180),
-    Stroke = Color3.fromRGB(45, 65, 105)
+    Background = Color3.fromRGB(7, 9, 24),
+    Panel = Color3.fromRGB(14, 18, 40),
+    Panel2 = Color3.fromRGB(23, 29, 59),
+    Blue = Color3.fromRGB(0, 125, 255),
+    Purple = Color3.fromRGB(145, 45, 255),
+    White = Color3.fromRGB(245, 245, 255),
+    Muted = Color3.fromRGB(155, 165, 195),
+    Green = Color3.fromRGB(45, 220, 150),
+    Red = Color3.fromRGB(240, 70, 90)
 }
 
-local function Corner(Object, Radius)
-    local C = Instance.new("UICorner")
-    C.CornerRadius = UDim.new(0, Radius or 7)
-    C.Parent = Object
-    return C
-end
+--========================================================
+-- HELPERS
+--========================================================
 
-local function Make(class, props, parent)
-    local obj = Instance.new(class)
-    for k, v in pairs(props) do
-        obj[k] = v
+local function Create(class, props, parent)
+    local object = Instance.new(class)
+
+    for property, value in pairs(props or {}) do
+        object[property] = value
     end
-    obj.Parent = parent
-    return obj
+
+    object.Parent = parent
+    return object
 end
 
---==================================================
--- CREATE LIBRARY
---==================================================
+local function Corner(parent, radius)
+    Create("UICorner", {
+        CornerRadius = UDim.new(0, radius or 10)
+    }, parent)
+end
 
-function Library.CreateLib(Title, ThemeName)
+local function Outline(parent, color, thickness)
+    return Create("UIStroke", {
+        Color = color or Theme.Blue,
+        Thickness = thickness or 1,
+        Transparency = 0.15
+    }, parent)
+end
 
-    local Window = {
-        Tabs = {},
-        CurrentTab = nil
-    }
+local function MakeGradient(parent)
+    Create("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Theme.Blue),
+            ColorSequenceKeypoint.new(1, Theme.Purple)
+        }),
+        Rotation = 0
+    }, parent)
+end
 
-    local Old = PlayerGui:FindFirstChild("ZTE_CYBER_UI")
-    if Old then Old:Destroy() end
+local function MakeLabel(parent, text, size, color, font)
+    return Create("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = text,
+        TextSize = size or 14,
+        TextColor3 = color or Theme.White,
+        Font = font or Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        Size = UDim2.new(1, 0, 0, 25)
+    }, parent)
+end
 
-    local Gui = Make("ScreenGui", {
-        Name = "ZTE_CYBER_UI",
+local function GetCharacter()
+    return Player.Character or Player.CharacterAdded:Wait()
+end
+
+local function GetHumanoid()
+    return GetCharacter():FindFirstChildOfClass("Humanoid")
+end
+
+local function GetRoot()
+    return GetCharacter():FindFirstChild("HumanoidRootPart")
+end
+
+--========================================================
+-- LIBRARY CREATION
+--========================================================
+
+function Library.CreateLib(title, themeName)
+
+    local old = PlayerGui:FindFirstChild("ZTE_HUB")
+    if old then
+        old:Destroy()
+    end
+
+    local Window = {}
+    Window.Tabs = {}
+    Window.Theme = Theme
+
+    local ScreenGui = Create("ScreenGui", {
+        Name = "ZTE_HUB",
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     }, PlayerGui)
 
-    local Main = Make("Frame", {
+    Window.ScreenGui = ScreenGui
+
+    -- Main window
+    local Main = Create("Frame", {
         Name = "Main",
-        Size = UDim2.fromOffset(650, 420),
-        Position = UDim2.new(0.5, -325, 0.5, -210),
+        Size = UDim2.fromOffset(760, 490),
+        Position = UDim2.new(0.5, -380, 0.5, -245),
         BackgroundColor3 = Theme.Background,
         BorderSizePixel = 0,
         ClipsDescendants = true
-    }, Gui)
+    }, ScreenGui)
 
-    Corner(Main, 12)
+    Window.Main = Main
 
-    Make("UIStroke", {
-        Color = Theme.Blue,
-        Thickness = 1.5
+    Corner(Main, 16)
+    Outline(Main, Theme.Blue, 2)
+
+    local Scale = Create("UIScale", {
+        Scale = 1
     }, Main)
 
-    local Top = Make("Frame", {
-        Size = UDim2.new(1, 0, 0, 55),
-        BackgroundColor3 = Theme.Panel,
-        BorderSizePixel = 0
+    local function UpdateScale()
+        local camera = workspace.CurrentCamera
+        if not camera then return end
+
+        local viewport = camera.ViewportSize
+
+        Scale.Scale = math.clamp(
+            math.min(viewport.X / 820, viewport.Y / 540),
+            0.45,
+            1
+        )
+    end
+
+    UpdateScale()
+
+    if workspace.CurrentCamera then
+        workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
+    end
+
+    -- Header
+    local Header = Create("Frame", {
+        Name = "Header",
+        Size = UDim2.new(1, 0, 0, 95),
+        BackgroundTransparency = 1
     }, Main)
 
-    Corner(Top, 12)
+    local Crown = MakeLabel(Header, "♛", 43, Theme.Purple, Enum.Font.GothamBlack)
+    Crown.Position = UDim2.fromOffset(20, 13)
+    Crown.Size = UDim2.fromOffset(65, 55)
 
-    Make("TextLabel", {
-        Size = UDim2.new(1, -70, 1, 0),
-        Position = UDim2.fromOffset(18, 0),
-        BackgroundTransparency = 1,
-        Text = "♛  " .. tostring(Title or "ZTE HUB"),
-        TextColor3 = Theme.Text,
-        TextSize = 19,
-        Font = Enum.Font.GothamBold,
-        TextXAlignment = Enum.TextXAlignment.Left
-    }, Top)
+    local Title = MakeLabel(Header, title or "ZTE HUB", 31, Theme.White, Enum.Font.GothamBlack)
+    Title.Position = UDim2.fromOffset(85, 12)
+    Title.Size = UDim2.fromOffset(380, 42)
 
-    local Minimize = Make("TextButton", {
-        Size = UDim2.fromOffset(35, 35),
-        Position = UDim2.new(1, -47, 0, 10),
-        BackgroundColor3 = Theme.Element,
+    local Subtitle = MakeLabel(Header, "YOUR ULTIMATE SCRIPT HUB", 11, Theme.Muted, Enum.Font.GothamBold)
+    Subtitle.Position = UDim2.fromOffset(88, 52)
+    Subtitle.Size = UDim2.fromOffset(300, 22)
+
+    local Minimize = Create("TextButton", {
         Text = "—",
-        TextColor3 = Theme.Blue,
-        TextSize = 20,
-        Font = Enum.Font.GothamBold
-    }, Top)
+        TextSize = 24,
+        Font = Enum.Font.GothamBold,
+        TextColor3 = Theme.White,
+        BackgroundColor3 = Theme.Panel2,
+        Size = UDim2.fromOffset(42, 38),
+        Position = UDim2.new(1, -100, 0, 20)
+    }, Header)
 
-    Corner(Minimize, 8)
+    Corner(Minimize, 9)
 
-    local Sidebar = Make("Frame", {
-        Position = UDim2.fromOffset(0, 55),
-        Size = UDim2.new(0, 155, 1, -55),
-        BackgroundColor3 = Theme.Sidebar,
-        BorderSizePixel = 0
+    local Close = Create("TextButton", {
+        Text = "×",
+        TextSize = 27,
+        Font = Enum.Font.GothamBold,
+        TextColor3 = Theme.White,
+        BackgroundColor3 = Theme.Panel2,
+        Size = UDim2.fromOffset(42, 38),
+        Position = UDim2.new(1, -51, 0, 20)
+    }, Header)
+
+    Corner(Close, 9)
+
+    -- Sidebar
+    local Sidebar = Create("Frame", {
+        Name = "Sidebar",
+        Position = UDim2.fromOffset(12, 103),
+        Size = UDim2.new(0, 145, 1, -115),
+        BackgroundTransparency = 1
     }, Main)
 
-    local SideLayout = Make("UIListLayout", {
-        Padding = UDim.new(0, 7),
+    Create("UIListLayout", {
+        Padding = UDim.new(0, 9),
         SortOrder = Enum.SortOrder.LayoutOrder
     }, Sidebar)
 
-    Make("UIPadding", {
-        PaddingTop = UDim.new(0, 15),
-        PaddingLeft = UDim.new(0, 10),
-        PaddingRight = UDim.new(0, 10)
-    }, Sidebar)
-
-    local Content = Make("Frame", {
-        Position = UDim2.new(0, 155, 0, 55),
-        Size = UDim2.new(1, -155, 1, -55),
-        BackgroundColor3 = Theme.Background,
-        BorderSizePixel = 0
+    -- Page container
+    local Content = Create("Frame", {
+        Name = "Content",
+        Position = UDim2.fromOffset(168, 103),
+        Size = UDim2.new(1, -180, 1, -115),
+        BackgroundTransparency = 1
     }, Main)
 
-    local Bubble = Make("TextButton", {
-        Size = UDim2.fromOffset(55, 55),
-        Position = UDim2.new(0, 20, 0.5, 0),
+    Window.Content = Content
+
+    local Pages = {}
+    local SelectedTab
+
+    --====================================================
+    -- TAB SYSTEM
+    --====================================================
+
+    local function SelectTab(name)
+        for tabName, page in pairs(Pages) do
+            page.Visible = tabName == name
+        end
+
+        for tabName, tab in pairs(Window.Tabs) do
+            tab.Button.BackgroundColor3 =
+                tabName == name and Theme.Blue or Theme.Panel2
+
+            tab.Button.TextColor3 =
+                tabName == name and Theme.White or Theme.Muted
+        end
+
+        SelectedTab = name
+    end
+
+    --====================================================
+    -- SECTION SYSTEM
+    --====================================================
+
+    local function NewSection(tab, sectionName)
+
+        local sectionFrame = Create("Frame", {
+            Name = sectionName,
+            BackgroundColor3 = Theme.Panel,
+            Size = UDim2.new(1, -5, 0, 55),
+            AutomaticSize = Enum.AutomaticSize.Y
+        }, tab.Page)
+
+        Corner(sectionFrame, 12)
+        Outline(sectionFrame, Theme.Purple, 1)
+
+        local heading = MakeLabel(
+            sectionFrame,
+            "✦  " .. sectionName,
+            16,
+            Theme.White,
+            Enum.Font.GothamBold
+        )
+
+        heading.Position = UDim2.fromOffset(13, 7)
+        heading.Size = UDim2.new(1, -25, 0, 28)
+
+        local holder = Create("Frame", {
+            Name = "Elements",
+            Position = UDim2.fromOffset(12, 42),
+            Size = UDim2.new(1, -24, 0, 0),
+            BackgroundTransparency = 1,
+            AutomaticSize = Enum.AutomaticSize.Y
+        }, sectionFrame)
+
+        Create("UIListLayout", {
+            Padding = UDim.new(0, 8),
+            SortOrder = Enum.SortOrder.LayoutOrder
+        }, holder)
+
+        local Section = {}
+
+        -- BUTTON
+        function Section:NewButton(text, description, callback)
+
+            local button = Create("TextButton", {
+                Text = text,
+                TextSize = 14,
+                Font = Enum.Font.GothamBold,
+                TextColor3 = Theme.White,
+                BackgroundColor3 = Theme.Panel2,
+                Size = UDim2.new(1, 0, 0, 42),
+                AutoButtonColor = true
+            }, holder)
+
+            Corner(button, 9)
+            Outline(button, Theme.Blue, 1)
+
+            button.MouseButton1Click:Connect(function()
+                if callback then
+                    task.spawn(callback)
+                end
+            end)
+
+            return button
+        end
+
+        -- TOGGLE
+        function Section:NewToggle(text, default, callback)
+
+            local enabled = default or false
+
+            local row = Create("Frame", {
+                BackgroundColor3 = Theme.Panel2,
+                Size = UDim2.new(1, 0, 0, 43)
+            }, holder)
+
+            Corner(row, 9)
+
+            local label = MakeLabel(row, text, 13, Theme.White)
+            label.Position = UDim2.fromOffset(11, 0)
+            label.Size = UDim2.new(1, -75, 1, 0)
+
+            local switch = Create("TextButton", {
+                Text = "",
+                BackgroundColor3 = enabled and Theme.Blue or Theme.Background,
+                Size = UDim2.fromOffset(45, 24),
+                Position = UDim2.new(1, -55, 0.5, -12)
+            }, row)
+
+            Corner(switch, 20)
+
+            local knob = Create("Frame", {
+                BackgroundColor3 = Theme.White,
+                Size = UDim2.fromOffset(18, 18),
+                Position = enabled and UDim2.new(1, -21, 0, 3)
+                    or UDim2.fromOffset(3, 3)
+            }, switch)
+
+            Corner(knob, 20)
+
+            local function Set(value)
+                enabled = value
+
+                switch.BackgroundColor3 =
+                    enabled and Theme.Blue or Theme.Background
+
+                knob.Position = enabled and
+                    UDim2.new(1, -21, 0, 3) or
+                    UDim2.fromOffset(3, 3)
+
+                if callback then
+                    task.spawn(callback, enabled)
+                end
+            end
+
+            switch.MouseButton1Click:Connect(function()
+                Set(not enabled)
+            end)
+
+            return {
+                Set = Set,
+                Get = function()
+                    return enabled
+                end
+            }
+        end
+
+        -- SLIDER
+        function Section:NewSlider(text, min, max, default, callback)
+
+            local value = default or min
+
+            local row = Create("Frame", {
+                BackgroundColor3 = Theme.Panel2,
+                Size = UDim2.new(1, 0, 0, 64)
+            }, holder)
+
+            Corner(row, 9)
+
+            local label = MakeLabel(
+                row,
+                text .. ": " .. tostring(value),
+                13,
+                Theme.White
+            )
+
+            label.Position = UDim2.fromOffset(11, 3)
+            label.Size = UDim2.new(1, -22, 0, 24)
+
+            local bar = Create("TextButton", {
+                Text = "",
+                BackgroundColor3 = Theme.Background,
+                Position = UDim2.fromOffset(11, 39),
+                Size = UDim2.new(1, -22, 0, 9)
+            }, row)
+
+            Corner(bar, 10)
+
+            local fill = Create("Frame", {
+                BackgroundColor3 = Theme.Blue,
+                Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
+            }, bar)
+
+            Corner(fill, 10)
+            MakeGradient(fill)
+
+            local dragging = false
+
+            local function SetValueFromX(x)
+                local width = math.max(bar.AbsoluteSize.X, 1)
+
+                local ratio = math.clamp(
+                    (x - bar.AbsolutePosition.X) / width,
+                    0,
+                    1
+                )
+
+                value = math.floor(min + ratio * (max - min))
+
+                fill.Size = UDim2.new(ratio, 0, 1, 0)
+                label.Text = text .. ": " .. tostring(value)
+
+                if callback then
+                    task.spawn(callback, value)
+                end
+            end
+
+            bar.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1
+                    or input.UserInputType == Enum.UserInputType.Touch then
+
+                    dragging = true
+                    SetValueFromX(input.Position.X)
+                end
+            end)
+
+            UIS.InputChanged:Connect(function(input)
+                if dragging and (
+                    input.UserInputType == Enum.UserInputType.MouseMovement
+                    or input.UserInputType == Enum.UserInputType.Touch
+                ) then
+                    SetValueFromX(input.Position.X)
+                end
+            end)
+
+            UIS.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1
+                    or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = false
+                end
+            end)
+
+            local Slider = {}
+
+            function Slider:Set(newValue)
+                value = math.clamp(newValue, min, max)
+                local ratio = (value - min) / (max - min)
+
+                fill.Size = UDim2.new(ratio, 0, 1, 0)
+                label.Text = text .. ": " .. tostring(value)
+
+                if callback then
+                    task.spawn(callback, value)
+                end
+            end
+
+            function Slider:Get()
+                return value
+            end
+
+            return Slider
+        end
+
+        return Section
+    end
+
+    --====================================================
+    -- CREATE TAB
+    --====================================================
+
+    function Window:NewTab(name)
+
+        if Pages[name] then
+            warn("ZTE HUB: Tab already exists: " .. name)
+            return nil
+        end
+
+        local page = Create("ScrollingFrame", {
+            Name = name,
+            Size = UDim2.fromScale(1, 1),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ScrollBarThickness = 4,
+            ScrollBarImageColor3 = Theme.Purple,
+            CanvasSize = UDim2.new(),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            Visible = false
+        }, Content)
+
+        Create("UIListLayout", {
+            Padding = UDim.new(0, 12),
+            SortOrder = Enum.SortOrder.LayoutOrder
+        }, page)
+
+        Create("UIPadding", {
+            PaddingBottom = UDim.new(0, 12),
+            PaddingRight = UDim.new(0, 6)
+        }, page)
+
+        Pages[name] = page
+
+        local tabButton = Create("TextButton", {
+            Name = name .. "_Tab",
+            Text = "   " .. name,
+            TextSize = 14,
+            Font = Enum.Font.GothamBold,
+            TextColor3 = Theme.Muted,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            BackgroundColor3 = Theme.Panel2,
+            Size = UDim2.new(1, 0, 0, 44)
+        }, Sidebar)
+
+        Corner(tabButton, 9)
+
+        local tab = {
+            Name = name,
+            Page = page,
+            Button = tabButton
+        }
+
+        function tab:NewSection(sectionName)
+            return NewSection(tab, sectionName)
+        end
+
+        tabButton.MouseButton1Click:Connect(function()
+            SelectTab(name)
+        end)
+
+        Window.Tabs[name] = tab
+
+        return tab
+    end
+
+    --====================================================
+    -- PERMANENT HOME TAB
+    --====================================================
+
+    local Home = Window:NewTab("Home")
+    Home.Button.BackgroundColor3 = Theme.Blue
+    Home.Button.TextColor3 = Theme.White
+
+    SelectTab("Home")
+
+    -- Welcome panel
+    local Welcome = Create("Frame", {
         BackgroundColor3 = Theme.Panel,
-        Text = "Z",
-        TextColor3 = Theme.Blue,
-        TextSize = 25,
-        Font = Enum.Font.GothamBold,
+        Size = UDim2.new(1, -5, 0, 88)
+    }, Home.Page)
+
+    Corner(Welcome, 12)
+    Outline(Welcome, Theme.Purple, 1)
+
+    local WelcomeTitle = MakeLabel(
+        Welcome,
+        "WELCOME TO ZTE HUB",
+        21,
+        Theme.White,
+        Enum.Font.GothamBlack
+    )
+
+    WelcomeTitle.Position = UDim2.fromOffset(15, 13)
+    WelcomeTitle.Size = UDim2.new(1, -30, 0, 30)
+
+    local WelcomeSub = MakeLabel(
+        Welcome,
+        "Your Ultimate Script Hub",
+        13,
+        Theme.Muted
+    )
+
+    WelcomeSub.Position = UDim2.fromOffset(16, 47)
+    WelcomeSub.Size = UDim2.new(1, -30, 0, 22)
+
+    -- Home sections
+    local PlayerSection = Home:NewSection("PLAYER SCRIPTS")
+    local QuickSection = Home:NewSection("QUICK ACTIONS")
+
+    --====================================================
+    -- BUILT-IN PLAYER FEATURES
+    --====================================================
+
+    local DefaultSpeed = 16
+    local SpeedValue = 50
+    local SpeedEnabled = false
+    local NoclipEnabled = false
+    local FlyEnabled = false
+    local InfiniteJumpEnabled = false
+
+    -- SPEED
+    PlayerSection:NewToggle("Speed", false, function(enabled)
+        SpeedEnabled = enabled
+
+        local humanoid = GetHumanoid()
+        if humanoid then
+            humanoid.WalkSpeed = enabled and SpeedValue or DefaultSpeed
+        end
+    end)
+
+    PlayerSection:NewSlider("Speed Value", 16, 100, 50, function(value)
+        SpeedValue = value
+
+        if SpeedEnabled then
+            local humanoid = GetHumanoid()
+            if humanoid then
+                humanoid.WalkSpeed = value
+            end
+        end
+    end)
+
+    -- INFINITE JUMP
+    PlayerSection:NewToggle("Infinite Jump", false, function(enabled)
+        InfiniteJumpEnabled = enabled
+    end)
+
+    UIS.JumpRequest:Connect(function()
+        if not InfiniteJumpEnabled then return end
+
+        local humanoid = GetHumanoid()
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+
+    -- NOCLIP
+    local OriginalCollision = {}
+
+    PlayerSection:NewToggle("Noclip", false, function(enabled)
+        NoclipEnabled = enabled
+
+        if not enabled then
+            for part, original in pairs(OriginalCollision) do
+                if part and part.Parent then
+                    part.CanCollide = original
+                end
+            end
+
+            table.clear(OriginalCollision)
+        end
+    end)
+
+    RunService.Stepped:Connect(function()
+        if not NoclipEnabled then return end
+
+        local character = Player.Character
+        if not character then return end
+
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                if OriginalCollision[part] == nil then
+                    OriginalCollision[part] = part.CanCollide
+                end
+
+                part.CanCollide = false
+            end
+        end
+    end)
+
+    -- FLY
+    local FlyConnection
+    local FlyVelocity
+    local FlyGyro
+    local FlyAttachment
+
+    PlayerSection:NewToggle("Fly", false, function(enabled)
+
+        FlyEnabled = enabled
+
+        local character = GetCharacter()
+        local root = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = GetHumanoid()
+
+        if not root or not humanoid then return end
+
+        if enabled then
+
+            FlyAttachment = Instance.new("Attachment")
+            FlyAttachment.Name = "ZTE_FlyAttachment"
+            FlyAttachment.Parent = root
+
+            FlyVelocity = Instance.new("LinearVelocity")
+            FlyVelocity.Attachment0 = FlyAttachment
+            FlyVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+            FlyVelocity.MaxForce = 100000
+            FlyVelocity.VectorVelocity = Vector3.zero
+            FlyVelocity.Parent = root
+
+            FlyGyro = Instance.new("AlignOrientation")
+            FlyGyro.Attachment0 = FlyAttachment
+            FlyGyro.Mode = Enum.OrientationAlignmentMode.OneAttachment
+            FlyGyro.MaxTorque = 100000
+            FlyGyro.Responsiveness = 20
+            FlyGyro.Parent = root
+
+            humanoid.PlatformStand = true
+
+            FlyConnection = RunService.RenderStepped:Connect(function()
+                if not FlyEnabled or not root.Parent then return end
+
+                local camera = workspace.CurrentCamera
+                local move = humanoid.MoveDirection
+
+                local vertical = 0
+
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                    vertical = 1
+                elseif UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+                    vertical = -1
+                end
+
+                if vertical == 0 and UIS.TouchEnabled then
+                    if humanoid.Jump then
+                        vertical = 1
+                    end
+                end
+
+                FlyVelocity.VectorVelocity =
+                    (move * 55) + Vector3.new(0, vertical * 35, 0)
+
+                FlyGyro.CFrame = camera.CFrame
+            end)
+
+        else
+
+            if FlyConnection then
+                FlyConnection:Disconnect()
+                FlyConnection = nil
+            end
+
+            if FlyVelocity then
+                FlyVelocity:Destroy()
+                FlyVelocity = nil
+            end
+
+            if FlyGyro then
+                FlyGyro:Destroy()
+                FlyGyro = nil
+            end
+
+            if FlyAttachment then
+                FlyAttachment:Destroy()
+                FlyAttachment = nil
+            end
+
+            humanoid.PlatformStand = false
+        end
+    end)
+
+    --====================================================
+    -- QUICK ACTIONS
+    --====================================================
+
+    QuickSection:NewButton("Server Hop", "Join another available server", function()
+
+        local success, err = pcall(function()
+            TeleportService:Teleport(game.PlaceId, Player)
+        end)
+
+        if not success then
+            warn("ZTE HUB Server Hop:", err)
+        end
+    end)
+
+    QuickSection:NewButton("Rejoin", "Rejoin this server", function()
+
+        local success, err = pcall(function()
+            TeleportService:TeleportToPlaceInstance(
+                game.PlaceId,
+                game.JobId,
+                Player
+            )
+        end)
+
+        if not success then
+            warn("ZTE HUB Rejoin:", err)
+        end
+    end)
+
+    QuickSection:NewButton("Reset Avatar", "Reset your character", function()
+
+        local humanoid = GetHumanoid()
+
+        if humanoid then
+            humanoid.Health = 0
+        end
+    end)
+
+    --====================================================
+    -- MINIMIZE / REOPEN
+    --====================================================
+
+    local OpenBubble = Create("TextButton", {
+        Name = "ZTE_OpenBubble",
+        Text = "♛ ZTE",
+        TextSize = 15,
+        Font = Enum.Font.GothamBlack,
+        TextColor3 = Theme.White,
+        BackgroundColor3 = Theme.Blue,
+        Size = UDim2.fromOffset(105, 42),
+        Position = UDim2.new(0, 15, 0.5, -21),
         Visible = false
-    }, Gui)
+    }, ScreenGui)
 
-    Corner(Bubble, 28)
-
-    Make("UIStroke", {
-        Color = Theme.Purple,
-        Thickness = 2
-    }, Bubble)
+    Corner(OpenBubble, 12)
+    Outline(OpenBubble, Theme.Purple, 2)
 
     Minimize.MouseButton1Click:Connect(function()
         Main.Visible = false
-        Bubble.Visible = true
+        OpenBubble.Visible = true
     end)
 
-    Bubble.MouseButton1Click:Connect(function()
+    OpenBubble.MouseButton1Click:Connect(function()
         Main.Visible = true
-        Bubble.Visible = false
+        OpenBubble.Visible = false
     end)
 
-    -- Dragging
-    local Dragging = false
-    local DragStart
-    local StartPosition
+    Close.MouseButton1Click:Connect(function()
+        ScreenGui:Destroy()
+    end)
 
-    Top.InputBegan:Connect(function(input)
+    --====================================================
+    -- DRAGGABLE WINDOW
+    --====================================================
+
+    local dragging = false
+    local dragStart
+    local startPosition
+
+    Header.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            Dragging = true
-            DragStart = input.Position
-            StartPosition = Main.Position
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+            dragging = true
+            dragStart = input.Position
+            startPosition = Main.Position
         end
     end)
 
     UIS.InputChanged:Connect(function(input)
-        if Dragging and (
+        if dragging and (
             input.UserInputType == Enum.UserInputType.MouseMovement
             or input.UserInputType == Enum.UserInputType.Touch
         ) then
-            local delta = input.Position - DragStart
+
+            local delta = input.Position - dragStart
+
             Main.Position = UDim2.new(
-                StartPosition.X.Scale,
-                StartPosition.X.Offset + delta.X,
-                StartPosition.Y.Scale,
-                StartPosition.Y.Offset + delta.Y
+                startPosition.X.Scale,
+                startPosition.X.Offset + delta.X,
+                startPosition.Y.Scale,
+                startPosition.Y.Offset + delta.Y
             )
         end
     end)
 
     UIS.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            Dragging = false
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
         end
     end)
 
-    Window.ScreenGui = Gui
-    Window.Main = Main
-    Window.Theme = Theme
-    Window.Sidebar = Sidebar
-    Window.Content = Content
+    --====================================================
+    -- RESPAWN HANDLING
+    --====================================================
 
-    --==================================================
-    -- TAB
-    --==================================================
+    Player.CharacterAdded:Connect(function(character)
 
-    function Window:NewTab(TabName)
+        local humanoid = character:WaitForChild("Humanoid")
 
-        local Tab = {
-            Name = TabName,
-            Sections = {}
-        }
+        task.wait(0.2)
 
-        local TabButton = Make("TextButton", {
-            Size = UDim2.new(1, 0, 0, 38),
-            BackgroundTransparency = 1,
-            Text = "   " .. TabName,
-            TextColor3 = Theme.SubText,
-            TextSize = 13,
-            Font = Enum.Font.GothamSemibold,
-            TextXAlignment = Enum.TextXAlignment.Left
-        }, Sidebar)
+        humanoid.WalkSpeed = SpeedEnabled and SpeedValue or DefaultSpeed
 
-        Corner(TabButton, 7)
+        NoclipEnabled = false
+        FlyEnabled = false
+        InfiniteJumpEnabled = InfiniteJumpEnabled
 
-        local Page = Make("ScrollingFrame", {
-            Size = UDim2.new(1, -20, 1, -20),
-            Position = UDim2.fromOffset(10, 10),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            ScrollBarThickness = 3,
-            ScrollBarImageColor3 = Theme.Blue,
-            CanvasSize = UDim2.new(0, 0, 0, 0),
-            Visible = false
-        }, Content)
+        table.clear(OriginalCollision)
+    end)
 
-        local PageLayout = Make("UIListLayout", {
-            Padding = UDim.new(0, 10),
-            SortOrder = Enum.SortOrder.LayoutOrder
-        }, Page)
+    --====================================================
+    -- WINDOW METHODS
+    --====================================================
 
-        PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            Page.CanvasSize = UDim2.new(
-                0, 0, 0, PageLayout.AbsoluteContentSize.Y + 15
-            )
-        end)
-
-        local function SelectTab()
-            for _, other in ipairs(Window.Tabs) do
-                other.Page.Visible = false
-                other.Button.BackgroundTransparency = 1
-                other.Button.TextColor3 = Theme.SubText
-            end
-
-            Page.Visible = true
-            TabButton.BackgroundTransparency = 0
-            TabButton.BackgroundColor3 = Theme.Element
-            TabButton.TextColor3 = Theme.Blue
-            Window.CurrentTab = Tab
-        end
-
-        TabButton.MouseButton1Click:Connect(SelectTab)
-
-        Tab.Button = TabButton
-        Tab.Page = Page
-        table.insert(Window.Tabs, Tab)
-
-        if #Window.Tabs == 1 then
-            SelectTab()
-        end
-
-        --==================================================
-        -- SECTION
-        --==================================================
-
-        function Tab:NewSection(SectionName)
-
-            local Section = {}
-
-            local Frame = Make("Frame", {
-                Name = SectionName,
-                Size = UDim2.new(1, 0, 0, 45),
-                AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundColor3 = Theme.Panel,
-                BorderSizePixel = 0
-            }, Page)
-
-            Corner(Frame, 9)
-
-            Make("UIStroke", {
-                Color = Theme.Stroke,
-                Thickness = 1
-            }, Frame)
-
-            Make("TextLabel", {
-                Size = UDim2.new(1, -20, 0, 35),
-                Position = UDim2.fromOffset(12, 0),
-                BackgroundTransparency = 1,
-                Text = SectionName,
-                TextColor3 = Theme.Blue,
-                TextSize = 14,
-                Font = Enum.Font.GothamBold,
-                TextXAlignment = Enum.TextXAlignment.Left
-            }, Frame)
-
-            local Holder = Make("Frame", {
-                Name = "Elements",
-                Position = UDim2.fromOffset(10, 38),
-                Size = UDim2.new(1, -20, 0, 0),
-                AutomaticSize = Enum.AutomaticSize.Y,
-                BackgroundTransparency = 1
-            }, Frame)
-
-            local Layout = Make("UIListLayout", {
-                Padding = UDim.new(0, 7),
-                SortOrder = Enum.SortOrder.LayoutOrder
-            }, Holder)
-
-            Make("UIPadding", {
-                PaddingBottom = UDim.new(0, 10)
-            }, Holder)
-
-            Section.Holder = Holder
-
-            -- BUTTON
-            function Section:NewButton(Name, Description, Callback)
-                local Button = Make("TextButton", {
-                    Size = UDim2.new(1, 0, 0, 42),
-                    BackgroundColor3 = Theme.Element,
-                    Text = Name,
-                    TextColor3 = Theme.Text,
-                    TextSize = 13,
-                    Font = Enum.Font.GothamSemibold
-                }, Holder)
-
-                Corner(Button, 7)
-
-                Button.MouseButton1Click:Connect(function()
-                    if Callback then
-                        task.spawn(Callback)
-                    end
-                end)
-
-                return Button
-            end
-
-            -- TOGGLE
-            function Section:NewToggle(Name, Description, Callback)
-                local Enabled = false
-
-                local Button = Make("TextButton", {
-                    Size = UDim2.new(1, 0, 0, 42),
-                    BackgroundColor3 = Theme.Element,
-                    Text = "",
-                }, Holder)
-
-                Corner(Button, 7)
-
-                Make("TextLabel", {
-                    Size = UDim2.new(1, -60, 1, 0),
-                    Position = UDim2.fromOffset(12, 0),
-                    BackgroundTransparency = 1,
-                    Text = Name,
-                    TextColor3 = Theme.Text,
-                    TextSize = 13,
-                    Font = Enum.Font.GothamSemibold,
-                    TextXAlignment = Enum.TextXAlignment.Left
-                }, Button)
-
-                local Switch = Make("TextLabel", {
-                    Size = UDim2.fromOffset(38, 22),
-                    Position = UDim2.new(1, -48, 0.5, -11),
-                    BackgroundColor3 = Theme.Stroke,
-                    Text = "OFF",
-                    TextColor3 = Theme.Text,
-                    TextSize = 9,
-                    Font = Enum.Font.GothamBold
-                }, Button)
-
-                Corner(Switch, 10)
-
-                local function SetValue(value)
-                    Enabled = value == true
-                    Switch.Text = Enabled and "ON" or "OFF"
-                    Switch.BackgroundColor3 = Enabled and Theme.Blue or Theme.Stroke
-
-                    if Callback then
-                        task.spawn(Callback, Enabled)
-                    end
-                end
-
-                Button.MouseButton1Click:Connect(function()
-                    SetValue(not Enabled)
-                end)
-
-                Button.SetValue = SetValue
-                Button.GetValue = function()
-                    return Enabled
-                end
-
-                return Button
-            end
-
-            -- LABEL
-            function Section:NewLabel(Text)
-                local Label = Make("TextLabel", {
-                    Size = UDim2.new(1, 0, 0, 30),
-                    BackgroundTransparency = 1,
-                    Text = "  " .. tostring(Text),
-                    TextColor3 = Theme.SubText,
-                    TextSize = 12,
-                    Font = Enum.Font.Gotham,
-                    TextXAlignment = Enum.TextXAlignment.Left
-                }, Holder)
-
-                Label.SetText = function(value)
-                    Label.Text = "  " .. tostring(value)
-                end
-
-                return Label
-            end
-
-            -- SLIDER
-            function Section:NewSlider(Name, Description, Max, Min, Callback)
-                Min = Min or 0
-                Max = Max or 100
-                local Value = Min
-
-                local Box = Make("Frame", {
-                    Size = UDim2.new(1, 0, 0, 65),
-                    BackgroundColor3 = Theme.Element
-                }, Holder)
-
-                Corner(Box, 7)
-
-                Make("TextLabel", {
-                    Size = UDim2.new(0.7, 0, 0, 25),
-                    Position = UDim2.fromOffset(12, 5),
-                    BackgroundTransparency = 1,
-                    Text = Name,
-                    TextColor3 = Theme.Text,
-                    TextSize = 13,
-                    Font = Enum.Font.GothamSemibold,
-                    TextXAlignment = Enum.TextXAlignment.Left
-                }, Box)
-
-                local ValueText = Make("TextLabel", {
-                    Size = UDim2.fromOffset(55, 25),
-                    Position = UDim2.new(1, -65, 0, 5),
-                    BackgroundTransparency = 1,
-                    Text = tostring(Value),
-                    TextColor3 = Theme.Blue,
-                    TextSize = 13,
-                    Font = Enum.Font.GothamBold
-                }, Box)
-
-                local Bar = Make("TextButton", {
-                    Size = UDim2.new(1, -24, 0, 7),
-                    Position = UDim2.fromOffset(12, 43),
-                    BackgroundColor3 = Theme.Stroke,
-                    Text = ""
-                }, Box)
-
-                Corner(Bar, 5)
-
-                local Fill = Make("Frame", {
-                    Size = UDim2.new(0, 0, 1, 0),
-                    BackgroundColor3 = Theme.Blue
-                }, Bar)
-
-                Corner(Fill, 5)
-
-                local function SetValue(value)
-                    Value = math.clamp(math.floor(value), Min, Max)
-                    local percent = Max == Min and 0 or (Value - Min) / (Max - Min)
-
-                    Fill.Size = UDim2.new(percent, 0, 1, 0)
-                    ValueText.Text = tostring(Value)
-
-                    if Callback then
-                        task.spawn(Callback, Value)
-                    end
-                end
-
-                local Sliding = false
-
-                local function Update(input)
-                    local percent = math.clamp(
-                        (input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X,
-                        0, 1
-                    )
-                    SetValue(Min + (Max - Min) * percent)
-                end
-
-                Bar.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1
-                    or input.UserInputType == Enum.UserInputType.Touch then
-                        Sliding = true
-                        Update(input)
-                    end
-                end)
-
-                UIS.InputChanged:Connect(function(input)
-                    if Sliding and (
-                        input.UserInputType == Enum.UserInputType.MouseMovement
-                        or input.UserInputType == Enum.UserInputType.Touch
-                    ) then
-                        Update(input)
-                    end
-                end)
-
-                UIS.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1
-                    or input.UserInputType == Enum.UserInputType.Touch then
-                        Sliding = false
-                    end
-                end)
-
-                SetValue(Min)
-                Box.SetValue = SetValue
-                Box.GetValue = function() return Value end
-                return Box
-            end
-
-            -- DROPDOWN
-            function Section:NewDropdown(Name, Description, Options, Callback)
-                Options = Options or {}
-                local Selected
-
-                local Box = Make("Frame", {
-                    Size = UDim2.new(1, 0, 0, 42),
-                    BackgroundColor3 = Theme.Element,
-                    ClipsDescendants = true
-                }, Holder)
-
-                Corner(Box, 7)
-
-                local Header = Make("TextButton", {
-                    Size = UDim2.new(1, 0, 0, 42),
-                    BackgroundTransparency = 1,
-                    Text = Name .. "  ▼",
-                    TextColor3 = Theme.Text,
-                    TextSize = 13,
-                    Font = Enum.Font.GothamSemibold
-                }, Box)
-
-                local OptionsHolder = Make("Frame", {
-                    Position = UDim2.fromOffset(8, 45),
-                    Size = UDim2.new(1, -16, 0, 0),
-                    BackgroundTransparency = 1
-                }, Box)
-
-                local OptionLayout = Make("UIListLayout", {
-                    Padding = UDim.new(0, 5)
-                }, OptionsHolder)
-
-                local Open = false
-
-                local function Refresh()
-                    for _, child in ipairs(OptionsHolder:GetChildren()) do
-                        if child:IsA("TextButton") then
-                            child:Destroy()
-                        end
-                    end
-
-                    for _, option in ipairs(Options) do
-                        local item = Make("TextButton", {
-                            Size = UDim2.new(1, 0, 0, 30),
-                            BackgroundColor3 = Theme.Panel,
-                            Text = tostring(option),
-                            TextColor3 = Theme.Text,
-                            TextSize = 12,
-                            Font = Enum.Font.Gotham
-                        }, OptionsHolder)
-
-                        Corner(item, 5)
-
-                        item.MouseButton1Click:Connect(function()
-                            Selected = option
-                            Header.Text = Name .. "  " .. tostring(option)
-                            Open = false
-                            Box.Size = UDim2.new(1, 0, 0, 42)
-
-                            if Callback then
-                                task.spawn(Callback, option)
-                            end
-                        end)
-                    end
-
-                    OptionsHolder.Size = UDim2.new(
-                        1, -16, 0, OptionLayout.AbsoluteContentSize.Y
-                    )
-                end
-
-                Header.MouseButton1Click:Connect(function()
-                    Open = not Open
-                    Box.Size = UDim2.new(
-                        1, 0, 0,
-                        Open and (50 + OptionLayout.AbsoluteContentSize.Y) or 42
-                    )
-                end)
-
-                Refresh()
-
-                Box.Refresh = function(newOptions)
-                    Options = newOptions or {}
-                    Refresh()
-                end
-
-                Box.GetValue = function()
-                    return Selected
-                end
-
-                return Box
-            end
-
-            -- TEXTBOX
-            function Section:NewTextBox(Name, Description, Callback)
-                local Box = Make("Frame", {
-                    Size = UDim2.new(1, 0, 0, 65),
-                    BackgroundColor3 = Theme.Element
-                }, Holder)
-
-                Corner(Box, 7)
-
-                Make("TextLabel", {
-                    Size = UDim2.new(0.4, 0, 0, 25),
-                    Position = UDim2.fromOffset(12, 5),
-                    BackgroundTransparency = 1,
-                    Text = Name,
-                    TextColor3 = Theme.Text,
-                    TextSize = 13,
-                    Font = Enum.Font.GothamSemibold,
-                    TextXAlignment = Enum.TextXAlignment.Left
-                }, Box)
-
-                local Input = Make("TextBox", {
-                    Size = UDim2.new(0.5, 0, 0, 32),
-                    Position = UDim2.new(0.48, 0, 0, 16),
-                    BackgroundColor3 = Theme.Panel,
-                    Text = "",
-                    PlaceholderText = "Enter text...",
-                    TextColor3 = Theme.Text,
-                    PlaceholderColor3 = Theme.SubText,
-                    TextSize = 12,
-                    Font = Enum.Font.Gotham,
-                    ClearTextOnFocus = false
-                }, Box)
-
-                Corner(Input, 5)
-
-                Input.FocusLost:Connect(function(enter)
-                    if enter and Callback then
-                        task.spawn(Callback, Input.Text)
-                    end
-                end)
-
-                Box.GetValue = function()
-                    return Input.Text
-                end
-
-                return Box
-            end
-
-            -- KEYBIND
-            function Section:NewKeybind(Name, Description, DefaultKey, Callback)
-                local CurrentKey = DefaultKey or Enum.KeyCode.RightShift
-                local Listening = false
-
-                local Button = Make("TextButton", {
-                    Size = UDim2.new(1, 0, 0, 42),
-                    BackgroundColor3 = Theme.Element,
-                    Text = Name .. "     [" .. CurrentKey.Name .. "]",
-                    TextColor3 = Theme.Text,
-                    TextSize = 13,
-                    Font = Enum.Font.GothamSemibold
-                }, Holder)
-
-                Corner(Button, 7)
-
-                Button.MouseButton1Click:Connect(function()
-                    Listening = true
-                    Button.Text = Name .. "     [Press key]"
-                end)
-
-                local Connection = UIS.InputBegan:Connect(function(input, processed)
-                    if Listening and input.UserInputType == Enum.UserInputType.Keyboard then
-                        CurrentKey = input.KeyCode
-                        Listening = false
-                        Button.Text = Name .. "     [" .. CurrentKey.Name .. "]"
-                        return
-                    end
-
-                    if not processed
-                    and input.UserInputType == Enum.UserInputType.Keyboard
-                    and input.KeyCode == CurrentKey then
-                        if Callback then
-                            task.spawn(Callback, CurrentKey)
-                        end
-                    end
-                end)
-
-                Button.Destroying:Connect(function()
-                    Connection:Disconnect()
-                end)
-
-                Button.GetKey = function()
-                    return CurrentKey
-                end
-
-                return Button
-            end
-
-            table.insert(Tab.Sections, Section)
-            return Section
-        end
-
-        return Tab
+    function Window:Destroy()
+        ScreenGui:Destroy()
     end
+
+    function Window:SelectTab(name)
+        if Pages[name] then
+            SelectTab(name)
+        end
+    end
+
+    print("ZTE HUB | Cyber Library loaded!")
 
     return Window
 end
