@@ -836,14 +836,12 @@ function Library.CreateLib(title, themeName)
 
             FlyVelocity.VectorVelocity = direction * 55
 
-            -- Face camera yaw only to avoid camera rotation feedback.
-            local faceDirection = Vector3.new(look.X, 0, look.Z)
-
-            if faceDirection.Magnitude > 0.001 then
-                FlyGyro.CFrame = CFrame.lookAt(
-                    root.Position,
-                    root.Position + faceDirection.Unit
-                )
+            -- Full body follows camera direction
+FlyGyro.CFrame = CFrame.lookAt(
+    root.Position,
+    root.Position + camera.CFrame.LookVector,
+    camera.CFrame.UpVector
+)
             end
         end)
     end
