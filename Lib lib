@@ -794,14 +794,338 @@ function Library.CreateLib(title, themeName)
         end
     end)
 
-    QuickSection:NewButton("Reset Avatar", "Reset your character", function()
+
+    --====================================================
+    -- PERMANENT HOME TAB
+    --====================================================
+
+    local Home = Window:NewTab("Home")
+    Home.Button.BackgroundColor3 = Theme.Blue
+    Home.Button.TextColor3 = Theme.White
+
+    SelectTab("Home")
+
+    -- WELCOME PANEL
+    local Welcome = Create("Frame", {
+        BackgroundColor3 = Theme.Panel,
+        Size = UDim2.new(1, -5, 0, 88)
+    }, Home.Page)
+
+    Corner(Welcome, 12)
+    Outline(Welcome, Theme.Purple, 1)
+
+    local WelcomeTitle = MakeLabel(
+        Welcome,
+        "WELCOME TO ZTE HUB",
+        21,
+        Theme.White,
+        Enum.Font.GothamBlack
+    )
+
+    WelcomeTitle.Position = UDim2.fromOffset(15, 13)
+    WelcomeTitle.Size = UDim2.new(1, -30, 0, 30)
+
+    local WelcomeSub = MakeLabel(
+        Welcome,
+        "Your Ultimate Script Hub",
+        13,
+        Theme.Muted
+    )
+
+    WelcomeSub.Position = UDim2.fromOffset(16, 47)
+    WelcomeSub.Size = UDim2.new(1, -30, 0, 22)
+
+    -- HOME SECTIONS
+    local PlayerSection = Home:NewSection("PLAYER SCRIPTS")
+    local QuickSection = Home:NewSection("QUICK ACTIONS")
+
+    --====================================================
+    -- PLAYER FEATURES
+    --====================================================
+
+    local DefaultSpeed = 16
+    local SpeedValue = 50
+    local SpeedEnabled = false
+    local NoclipEnabled = false
+    local FlyEnabled = false
+    local InfiniteJumpEnabled = false
+
+    -- SPEED
+    PlayerSection:NewToggle("Speed", false, function(enabled)
+        SpeedEnabled = enabled
 
         local humanoid = GetHumanoid()
 
         if humanoid then
-            humanoid.Health = 0
+            humanoid.WalkSpeed = enabled and SpeedValue or DefaultSpeed
         end
     end)
+
+    PlayerSection:NewSlider("Speed Value", 16, 100, 50, function(value)
+        SpeedValue = value
+
+        if SpeedEnabled then
+            local humanoid = GetHumanoid()
+
+            if humanoid then
+                humanoid.WalkSpeed = value
+            end
+        end
+    end)
+
+    -- INFINITE JUMP
+    PlayerSection:NewToggle("Infinite Jump", false, function(enabled)
+        InfiniteJumpEnabled = enabled
+    end)
+
+    UIS.JumpRequest:Connect(function()
+        if not InfiniteJumpEnabled then
+            return
+        end
+
+        local humanoid = GetHumanoid()
+
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+
+    -- NOCLIP
+    local OriginalCollision = {}
+
+    PlayerSection:NewToggle("Noclip", false, function(enabled)
+        NoclipEnabled = enabled
+
+        if not enabled then
+            for part, original in pairs(OriginalCollision) do
+                if part and part.Parent then
+                    part.CanCollide = original
+                end
+            end
+
+            table.clear(OriginalCollision)
+        end
+    end)
+
+    RunService.Stepped:Connect(function()
+        if not NoclipEnabled then
+            return
+        end
+
+        local character = Player.Character
+
+        if not character then
+            return
+        end
+
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                if OriginalCollision[part] == nil then
+                    OriginalCollision[part] = part.CanCollide
+                end
+
+                part.CanCollide = false
+            end
+        end
+    end)
+
+    --====================================================
+    -- MOBILE FLY
+    -- CAMERA + JOYSTICK
+    --====================================================
+
+    local FlyConnection
+    local FlyVelocity
+    local FlyGyro
+    local FlyAttachment
+    local OldAutoRotate
+
+    local FLY_SPEED = 55
+
+    local function StopFly()
+        FlyEnabled = false
+
+        if FlyConnection then
+            FlyConnection:Disconnect()
+            FlyConnection = nil
+        end
+
+        if FlyVelocity then
+            FlyVelocity:Destroy()
+            FlyVelocity = nil
+        end
+
+        if FlyGyro then
+            FlyGyro:Destroy()
+            FlyGyro = nil
+        end
+
+        if FlyAttachment then
+            FlyAttachment:Destroy()
+            FlyAttachment = nil
+        end
+
+        local humanoid = GetHumanoid()
+
+        if humanoid then
+            humanoid.PlatformStand = false
+
+            if OldAutoRotate ~= nil then
+                humanoid.AutoRotate = OldAutoRotate
+            end
+        end
+
+        OldAutoRotate = nil
+    end
+
+    local function StartFly()
+        StopFly()
+
+        local character = GetCharacter()
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        local humanoid = GetHumanoid()
+
+        if not root or not humanoid then
+            FlyEnabled = false
+            return
+        end
+
+        FlyEnabled = true
+
+        OldAutoRotate = humanoid.AutoRotate
+        humanoid.AutoRotate = false
+
+        FlyAttachment = Instance.new("Attachment")
+        FlyAttachment.Name = "ZTE_FlyAttachment"
+        FlyAttachment.Parent = root
+
+        FlyVelocity = Instance.new("LinearVelocity")
+        FlyVelocity.Name = "ZTE_FlyVelocity"
+        FlyVelocity.Attachment0 = FlyAttachment
+        FlyVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+        FlyVelocity.MaxForce = 100000
+        FlyVelocity.VectorVelocity = Vector3.zero
+        FlyVelocity.Parent = root
+
+        FlyGyro = Instance.new("AlignOrientation")
+        FlyGyro.Name = "ZTE_FlyOrientation"
+        FlyGyro.Attachment0 = FlyAttachment
+        FlyGyro.Mode = Enum.OrientationAlignmentMode.OneAttachment
+        FlyGyro.MaxTorque = 100000
+        FlyGyro.Responsiveness = 20
+        FlyGyro.Parent = root
+
+        FlyConnection = RunService.RenderStepped:Connect(function()
+            if not FlyEnabled or not root.Parent or not humanoid.Parent then
+                StopFly()
+                return
+            end
+
+            local camera = workspace.CurrentCamera
+
+            if not camera then
+                return
+            end
+
+            -- Mobile joystick direction
+            local move = humanoid.MoveDirection
+
+            -- Camera direction
+            local look = camera.CFrame.LookVector
+            local right = camera.CFrame.RightVector
+
+            local forward = Vector3.new(look.X, 0, look.Z)
+            local side = Vector3.new(right.X, 0, right.Z)
+
+            if forward.Magnitude > 0 then
+                forward = forward.Unit
+            end
+
+            if side.Magnitude > 0 then
+                side = side.Unit
+            end
+
+            local forwardInput = move:Dot(forward)
+            local sideInput = move:Dot(side)
+
+            -- Camera controls vertical direction
+            local direction =
+                (forward * forwardInput)
+                + (side * sideInput)
+                + Vector3.new(
+                    0,
+                    look.Y * forwardInput,
+                    0
+                )
+
+            if direction.Magnitude > 1 then
+                direction = direction.Unit
+            end
+
+            FlyVelocity.VectorVelocity = direction * FLY_SPEED
+            FlyGyro.CFrame = camera.CFrame
+        end)
+    end
+
+    PlayerSection:NewToggle(
+        "Fly",
+        false,
+        function(enabled)
+            if enabled then
+                StartFly()
+            else
+                StopFly()
+            end
+        end
+    )
+
+    --====================================================
+    -- QUICK ACTIONS
+    --====================================================
+
+    QuickSection:NewButton(
+        "Server Hop",
+        "Join another available server",
+        function()
+            local success, err = pcall(function()
+                TeleportService:Teleport(game.PlaceId, Player)
+            end)
+
+            if not success then
+                warn("ZTE HUB Server Hop:", err)
+            end
+        end
+    )
+
+    QuickSection:NewButton(
+        "Rejoin",
+        "Rejoin this server",
+        function()
+            local success, err = pcall(function()
+                TeleportService:TeleportToPlaceInstance(
+                    game.PlaceId,
+                    game.JobId,
+                    Player
+                )
+            end)
+
+            if not success then
+                warn("ZTE HUB Rejoin:", err)
+            end
+        end
+    )
+
+    QuickSection:NewButton(
+        "Reset Avatar",
+        "Reset your character",
+        function()
+            local humanoid = GetHumanoid()
+
+            if humanoid then
+                humanoid.Health = 0
+            end
+        end
+    )
 
     --====================================================
     -- MINIMIZE / REOPEN
@@ -833,6 +1157,7 @@ function Library.CreateLib(title, themeName)
     end)
 
     Close.MouseButton1Click:Connect(function()
+        StopFly()
         ScreenGui:Destroy()
     end)
 
@@ -874,6 +1199,7 @@ function Library.CreateLib(title, themeName)
     UIS.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
             or input.UserInputType == Enum.UserInputType.Touch then
+
             dragging = false
         end
     end)
@@ -883,6 +1209,7 @@ function Library.CreateLib(title, themeName)
     --====================================================
 
     Player.CharacterAdded:Connect(function(character)
+        StopFly()
 
         local humanoid = character:WaitForChild("Humanoid")
 
@@ -891,9 +1218,6 @@ function Library.CreateLib(title, themeName)
         humanoid.WalkSpeed = SpeedEnabled and SpeedValue or DefaultSpeed
 
         NoclipEnabled = false
-        FlyEnabled = false
-        InfiniteJumpEnabled = InfiniteJumpEnabled
-
         table.clear(OriginalCollision)
     end)
 
@@ -902,6 +1226,7 @@ function Library.CreateLib(title, themeName)
     --====================================================
 
     function Window:Destroy()
+        StopFly()
         ScreenGui:Destroy()
     end
 
