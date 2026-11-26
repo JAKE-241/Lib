@@ -1,0 +1,1115 @@
+--==================================================
+-- ZTE HUB | CYBER UI
+-- PART 1 - FOUNDATION
+--==================================================
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- Remove previous UI
+local OldUI = PlayerGui:FindFirstChild("ZTE_CYBER_UI")
+if OldUI then
+    OldUI:Destroy()
+end
+
+--==================================================
+-- THEME
+--==================================================
+
+local Theme = {
+    Background = Color3.fromRGB(10, 12, 22),
+    Sidebar = Color3.fromRGB(14, 18, 32),
+    Panel = Color3.fromRGB(19, 24, 42),
+    Element = Color3.fromRGB(25, 32, 55),
+
+    Blue = Color3.fromRGB(0, 170, 255),
+    Purple = Color3.fromRGB(145, 70, 255),
+
+    Text = Color3.fromRGB(240, 245, 255),
+    SubText = Color3.fromRGB(135, 150, 180),
+    Stroke = Color3.fromRGB(45, 65, 105)
+}
+
+--==================================================
+-- LIBRARY
+--==================================================
+
+local Library = {}
+local Window = {}
+
+-- Expose for the next parts
+_G.ZTELibrary = Library
+_G.ZTEWindow = Window
+
+--==================================================
+-- CREATE GUI
+--==================================================
+
+function Library.CreateLib(Title, ThemeName)
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "ZTE_CYBER_UI"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.Parent = PlayerGui
+
+    -- Main Window
+    local Main = Instance.new("Frame")
+    Main.Name = "Main"
+    Main.Size = UDim2.new(0, 650, 0, 420)
+    Main.Position = UDim2.new(0.5, -325, 0.5, -210)
+    Main.BackgroundColor3 = Theme.Background
+    Main.BorderSizePixel = 0
+    Main.ClipsDescendants = true
+    Main.Parent = ScreenGui
+
+    local MainCorner = Instance.new("UICorner")
+    MainCorner.CornerRadius = UDim.new(0, 12)
+    MainCorner.Parent = Main
+
+    local MainStroke = Instance.new("UIStroke")
+    MainStroke.Color = Theme.Blue
+    MainStroke.Thickness = 1.5
+    MainStroke.Parent = Main
+
+    -- Top Bar
+    local TopBar = Instance.new("Frame")
+    TopBar.Name = "TopBar"
+    TopBar.Size = UDim2.new(1, 0, 0, 55)
+    TopBar.BackgroundColor3 = Theme.Panel
+    TopBar.BorderSizePixel = 0
+    TopBar.Parent = Main
+
+    local TopCorner = Instance.new("UICorner")
+    TopCorner.CornerRadius = UDim.new(0, 12)
+    TopCorner.Parent = TopBar
+
+    -- Title
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Name = "Title"
+    TitleLabel.Size = UDim2.new(1, -100, 1, 0)
+    TitleLabel.Position = UDim2.new(0, 18, 0, 0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = "♛  " .. tostring(Title or "ZTE HUB")
+    TitleLabel.TextColor3 = Theme.Text
+    TitleLabel.TextSize = 20
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.Parent = TopBar
+
+    -- Minimize Button
+    local Minimize = Instance.new("TextButton")
+    Minimize.Name = "Minimize"
+    Minimize.Size = UDim2.new(0, 35, 0, 35)
+    Minimize.Position = UDim2.new(1, -47, 0, 10)
+    Minimize.BackgroundColor3 = Theme.Element
+    Minimize.Text = "—"
+    Minimize.TextColor3 = Theme.Blue
+    Minimize.TextSize = 20
+    Minimize.Font = Enum.Font.GothamBold
+    Minimize.Parent = TopBar
+
+    Instance.new("UICorner", Minimize).CornerRadius =
+        UDim.new(0, 8)
+
+    -- Sidebar
+    local Sidebar = Instance.new("Frame")
+    Sidebar.Name = "Sidebar"
+    Sidebar.Position = UDim2.new(0, 0, 0, 55)
+    Sidebar.Size = UDim2.new(0, 155, 1, -55)
+    Sidebar.BackgroundColor3 = Theme.Sidebar
+    Sidebar.BorderSizePixel = 0
+    Sidebar.Parent = Main
+
+    local SidebarLayout = Instance.new("UIListLayout")
+    SidebarLayout.Padding = UDim.new(0, 7)
+    SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    SidebarLayout.Parent = Sidebar
+
+    local SidebarPadding = Instance.new("UIPadding")
+    SidebarPadding.PaddingTop = UDim.new(0, 15)
+    SidebarPadding.PaddingLeft = UDim.new(0, 10)
+    SidebarPadding.PaddingRight = UDim.new(0, 10)
+    SidebarPadding.Parent = Sidebar
+
+    -- Content Area
+    local Content = Instance.new("Frame")
+    Content.Name = "Content"
+    Content.Position = UDim2.new(0, 155, 0, 55)
+    Content.Size = UDim2.new(1, -155, 1, -55)
+    Content.BackgroundColor3 = Theme.Background
+    Content.BorderSizePixel = 0
+    Content.Parent = Main
+
+    -- Dragging
+    local Dragging = false
+    local DragStart
+    local StartPosition
+
+    TopBar.InputBegan:Connect(function(Input)
+        if Input.UserInputType == Enum.UserInputType.MouseButton1
+        or Input.UserInputType == Enum.UserInputType.Touch then
+
+            Dragging = true
+            DragStart = Input.Position
+            StartPosition = Main.Position
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(Input)
+        if Dragging and (
+            Input.UserInputType == Enum.UserInputType.MouseMovement
+            or Input.UserInputType == Enum.UserInputType.Touch
+        ) then
+
+            local Delta = Input.Position - DragStart
+
+            Main.Position = UDim2.new(
+                StartPosition.X.Scale,
+                StartPosition.X.Offset + Delta.X,
+                StartPosition.Y.Scale,
+                StartPosition.Y.Offset + Delta.Y
+            )
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(Input)
+        if Input.UserInputType == Enum.UserInputType.MouseButton1
+        or Input.UserInputType == Enum.UserInputType.Touch then
+            Dragging = false
+        end
+    end)
+
+    -- Floating Reopen Button
+    local Bubble = Instance.new("TextButton")
+    Bubble.Name = "ReopenButton"
+    Bubble.Size = UDim2.new(0, 55, 0, 55)
+    Bubble.Position = UDim2.new(0, 20, 0.5, 0)
+    Bubble.BackgroundColor3 = Theme.Panel
+    Bubble.Text = "Z"
+    Bubble.TextColor3 = Theme.Blue
+    Bubble.TextSize = 25
+    Bubble.Font = Enum.Font.GothamBold
+    Bubble.Visible = false
+    Bubble.Parent = ScreenGui
+
+    Instance.new("UICorner", Bubble).CornerRadius =
+        UDim.new(1, 0)
+
+    local BubbleStroke = Instance.new("UIStroke")
+    BubbleStroke.Color = Theme.Purple
+    BubbleStroke.Thickness = 2
+    BubbleStroke.Parent = Bubble
+
+    Minimize.MouseButton1Click:Connect(function()
+        Main.Visible = false
+        Bubble.Visible = true
+    end)
+
+    Bubble.MouseButton1Click:Connect(function()
+        Main.Visible = true
+        Bubble.Visible = false
+    end)
+
+    -- Store UI references
+    Window.ScreenGui = ScreenGui
+    Window.Main = Main
+    Window.TopBar = TopBar
+    Window.Sidebar = Sidebar
+    Window.Content = Content
+    Window.Theme = Theme
+
+    return Window
+end
+
+--==================================================
+-- END OF PART 1
+-- PART 2 WILL CONTINUE BELOW
+--==================================================
+
+--==================================================
+-- ZTE HUB | CYBER UI
+-- PART 2 - TAB SYSTEM
+--==================================================
+
+local TabSystem = {}
+
+local Window = _G.ZTEWindow
+local Theme = Window.Theme
+
+Window.Tabs = {}
+Window.CurrentTab = nil
+
+--==================================================
+-- CREATE TAB
+--==================================================
+
+function Window:NewTab(TabName)
+
+    local Tab = {}
+    Tab.Name = TabName
+    Tab.Sections = {}
+
+    -- Tab Button
+    local TabButton = Instance.new("TextButton")
+    TabButton.Name = TabName .. "Tab"
+    TabButton.Size = UDim2.new(1, 0, 0, 38)
+    TabButton.BackgroundColor3 = Theme.Element
+    TabButton.BackgroundTransparency = 1
+    TabButton.Text = "   " .. TabName
+    TabButton.TextColor3 = Theme.SubText
+    TabButton.TextSize = 13
+    TabButton.Font = Enum.Font.GothamSemibold
+    TabButton.TextXAlignment = Enum.TextXAlignment.Left
+    TabButton.Parent = Window.Sidebar
+
+    Instance.new("UICorner", TabButton).CornerRadius =
+        UDim.new(0, 7)
+
+    -- Page
+    local Page = Instance.new("ScrollingFrame")
+    Page.Name = TabName .. "Page"
+    Page.Size = UDim2.new(1, -20, 1, -20)
+    Page.Position = UDim2.new(0, 10, 0, 10)
+    Page.BackgroundTransparency = 1
+    Page.BorderSizePixel = 0
+    Page.ScrollBarThickness = 3
+    Page.ScrollBarImageColor3 = Theme.Blue
+    Page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    Page.Visible = false
+    Page.Parent = Window.Content
+
+    local PageLayout = Instance.new("UIListLayout")
+    PageLayout.Padding = UDim.new(0, 10)
+    PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    PageLayout.Parent = Page
+
+    local PagePadding = Instance.new("UIPadding")
+    PagePadding.PaddingBottom = UDim.new(0, 10)
+    PagePadding.Parent = Page
+
+    PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        Page.CanvasSize = UDim2.new(
+            0, 0, 0, PageLayout.AbsoluteContentSize.Y + 15
+        )
+    end)
+
+    -- Tab Selection
+    local function SelectTab()
+
+        for _, ExistingTab in pairs(Window.Tabs) do
+            ExistingTab.Page.Visible = false
+            ExistingTab.Button.BackgroundTransparency = 1
+            ExistingTab.Button.TextColor3 = Theme.SubText
+        end
+
+        Page.Visible = true
+        TabButton.BackgroundTransparency = 0
+        TabButton.BackgroundColor3 = Theme.Element
+        TabButton.TextColor3 = Theme.Blue
+
+        Window.CurrentTab = Tab
+    end
+
+    TabButton.MouseButton1Click:Connect(SelectTab)
+
+    -- Save Tab
+    Tab.Button = TabButton
+    Tab.Page = Page
+    Tab.Layout = PageLayout
+
+    table.insert(Window.Tabs, Tab)
+
+    -- First tab automatically selected
+    if #Window.Tabs == 1 then
+        SelectTab()
+    end
+
+    --==================================================
+    -- CREATE SECTION
+    --==================================================
+
+    function Tab:NewSection(SectionName)
+
+        local Section = {}
+
+        local SectionFrame = Instance.new("Frame")
+        SectionFrame.Name = SectionName
+        SectionFrame.Size = UDim2.new(1, 0, 0, 45)
+        SectionFrame.BackgroundColor3 = Theme.Panel
+        SectionFrame.BorderSizePixel = 0
+        SectionFrame.AutomaticSize = Enum.AutomaticSize.Y
+        SectionFrame.Parent = Page
+
+        Instance.new("UICorner", SectionFrame).CornerRadius =
+            UDim.new(0, 9)
+
+        local SectionStroke = Instance.new("UIStroke")
+        SectionStroke.Color = Theme.Stroke
+        SectionStroke.Thickness = 1
+        SectionStroke.Parent = SectionFrame
+
+        local SectionTitle = Instance.new("TextLabel")
+        SectionTitle.Size = UDim2.new(1, -20, 0, 35)
+        SectionTitle.Position = UDim2.new(0, 12, 0, 0)
+        SectionTitle.BackgroundTransparency = 1
+        SectionTitle.Text = SectionName
+        SectionTitle.TextColor3 = Theme.Blue
+        SectionTitle.TextSize = 14
+        SectionTitle.Font = Enum.Font.GothamBold
+        SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+        SectionTitle.Parent = SectionFrame
+
+        local ElementHolder = Instance.new("Frame")
+        ElementHolder.Name = "Elements"
+        ElementHolder.Position = UDim2.new(0, 10, 0, 38)
+        ElementHolder.Size = UDim2.new(1, -20, 0, 0)
+        ElementHolder.BackgroundTransparency = 1
+        ElementHolder.AutomaticSize = Enum.AutomaticSize.Y
+        ElementHolder.Parent = SectionFrame
+
+        local ElementLayout = Instance.new("UIListLayout")
+        ElementLayout.Padding = UDim.new(0, 7)
+        ElementLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        ElementLayout.Parent = ElementHolder
+
+        local BottomPadding = Instance.new("UIPadding")
+        BottomPadding.PaddingBottom = UDim.new(0, 10)
+        BottomPadding.Parent = ElementHolder
+
+        ElementLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            ElementHolder.Size = UDim2.new(
+                1, -20, 0, ElementLayout.AbsoluteContentSize.Y + 10
+            )
+        end)
+
+        Section.Holder = ElementHolder
+        Section.Layout = ElementLayout
+
+        table.insert(Tab.Sections, Section)
+
+        return Section
+    end
+
+    return Tab
+end
+
+--==================================================
+-- END OF PART 2
+-- PART 3 WILL CONTINUE BELOW
+--==================================================
+
+--==================================================
+-- ZTE HUB | CYBER UI
+-- PART 3 - BUTTON, TOGGLE & LABEL
+--==================================================
+
+--==================================================
+-- BUTTON
+--==================================================
+
+function Section:NewButton(Name, Description, Callback)
+
+    Callback = Callback or function() end
+
+    local Button = Instance.new("TextButton")
+    Button.Name = Name
+    Button.Size = UDim2.new(1, 0, 0, 42)
+    Button.BackgroundColor3 = Theme.Element
+    Button.BorderSizePixel = 0
+    Button.Text = ""
+    Button.AutoButtonColor = false
+    Button.Parent = self.Holder
+
+    Instance.new("UICorner", Button).CornerRadius =
+        UDim.new(0, 7)
+
+    local ButtonTitle = Instance.new("TextLabel")
+    ButtonTitle.Size = UDim2.new(1, -45, 1, 0)
+    ButtonTitle.Position = UDim2.new(0, 12, 0, 0)
+    ButtonTitle.BackgroundTransparency = 1
+    ButtonTitle.Text = Name
+    ButtonTitle.TextColor3 = Theme.Text
+    ButtonTitle.TextSize = 13
+    ButtonTitle.Font = Enum.Font.GothamSemibold
+    ButtonTitle.TextXAlignment = Enum.TextXAlignment.Left
+    ButtonTitle.Parent = Button
+
+    local Arrow = Instance.new("TextLabel")
+    Arrow.Size = UDim2.new(0, 30, 1, 0)
+    Arrow.Position = UDim2.new(1, -35, 0, 0)
+    Arrow.BackgroundTransparency = 1
+    Arrow.Text = "›"
+    Arrow.TextColor3 = Theme.Blue
+    Arrow.TextSize = 24
+    Arrow.Font = Enum.Font.GothamBold
+    Arrow.Parent = Button
+
+    Button.MouseEnter:Connect(function()
+        TweenService:Create(
+            Button,
+            TweenInfo.new(0.2),
+            {BackgroundColor3 = Theme.Stroke}
+        ):Play()
+    end)
+
+    Button.MouseLeave:Connect(function()
+        TweenService:Create(
+            Button,
+            TweenInfo.new(0.2),
+            {BackgroundColor3 = Theme.Element}
+        ):Play()
+    end)
+
+    Button.MouseButton1Click:Connect(function()
+        pcall(Callback)
+    end)
+
+    return Button
+end
+
+--==================================================
+-- TOGGLE
+--==================================================
+
+function Section:NewToggle(Name, Description, Callback)
+
+    Callback = Callback or function() end
+
+    local Enabled = false
+
+    local Toggle = Instance.new("TextButton")
+    Toggle.Name = Name
+    Toggle.Size = UDim2.new(1, 0, 0, 42)
+    Toggle.BackgroundColor3 = Theme.Element
+    Toggle.BorderSizePixel = 0
+    Toggle.Text = ""
+    Toggle.AutoButtonColor = false
+    Toggle.Parent = self.Holder
+
+    Instance.new("UICorner", Toggle).CornerRadius =
+        UDim.new(0, 7)
+
+    local ToggleTitle = Instance.new("TextLabel")
+    ToggleTitle.Size = UDim2.new(1, -65, 1, 0)
+    ToggleTitle.Position = UDim2.new(0, 12, 0, 0)
+    ToggleTitle.BackgroundTransparency = 1
+    ToggleTitle.Text = Name
+    ToggleTitle.TextColor3 = Theme.Text
+    ToggleTitle.TextSize = 13
+    ToggleTitle.Font = Enum.Font.GothamSemibold
+    ToggleTitle.TextXAlignment = Enum.TextXAlignment.Left
+    ToggleTitle.Parent = Toggle
+
+    local Switch = Instance.new("Frame")
+    Switch.Size = UDim2.new(0, 38, 0, 20)
+    Switch.Position = UDim2.new(1, -50, 0.5, -10)
+    Switch.BackgroundColor3 = Theme.Stroke
+    Switch.BorderSizePixel = 0
+    Switch.Parent = Toggle
+
+    Instance.new("UICorner", Switch).CornerRadius =
+        UDim.new(1, 0)
+
+    local Circle = Instance.new("Frame")
+    Circle.Size = UDim2.new(0, 14, 0, 14)
+    Circle.Position = UDim2.new(0, 3, 0.5, -7)
+    Circle.BackgroundColor3 = Theme.Text
+    Circle.BorderSizePixel = 0
+    Circle.Parent = Switch
+
+    Instance.new("UICorner", Circle).CornerRadius =
+        UDim.new(1, 0)
+
+    local function UpdateToggle()
+
+        local TargetPosition
+        local TargetColor
+
+        if Enabled then
+            TargetPosition = UDim2.new(1, -17, 0.5, -7)
+            TargetColor = Theme.Blue
+        else
+            TargetPosition = UDim2.new(0, 3, 0.5, -7)
+            TargetColor = Theme.Stroke
+        end
+
+        TweenService:Create(
+            Circle,
+            TweenInfo.new(0.2),
+            {Position = TargetPosition}
+        ):Play()
+
+        TweenService:Create(
+            Switch,
+            TweenInfo.new(0.2),
+            {BackgroundColor3 = TargetColor}
+        ):Play()
+
+        pcall(Callback, Enabled)
+    end
+
+    Toggle.MouseButton1Click:Connect(function()
+        Enabled = not Enabled
+        UpdateToggle()
+    end)
+
+    Toggle.SetValue = function(Value)
+        Enabled = Value
+        UpdateToggle()
+    end
+
+    Toggle.GetValue = function()
+        return Enabled
+    end
+
+    return Toggle
+end
+
+--==================================================
+-- LABEL
+--==================================================
+
+function Section:NewLabel(Text)
+
+    local Label = Instance.new("TextLabel")
+    Label.Name = "Label"
+    Label.Size = UDim2.new(1, 0, 0, 30)
+    Label.BackgroundTransparency = 1
+    Label.Text = "  " .. tostring(Text)
+    Label.TextColor3 = Theme.SubText
+    Label.TextSize = 12
+    Label.Font = Enum.Font.Gotham
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = self.Holder
+
+    Label.SetText = function(NewText)
+        Label.Text = "  " .. tostring(NewText)
+    end
+
+    return Label
+end
+
+--==================================================
+-- END OF PART 3
+-- PART 4 WILL CONTINUE BELOW
+--==================================================
+
+--==================================================
+-- ZTE HUB | CYBER UI
+-- PART 4 - SLIDER, DROPDOWN & TEXTBOX
+--==================================================
+
+--==================================================
+-- SLIDER
+--==================================================
+
+function Section:NewSlider(Name, Description, Max, Min, Callback)
+
+    Callback = Callback or function() end
+    Min = Min or 0
+    Max = Max or 100
+
+    local Value = Min
+
+    local Container = Instance.new("Frame")
+    Container.Name = Name
+    Container.Size = UDim2.new(1, 0, 0, 65)
+    Container.BackgroundColor3 = Theme.Element
+    Container.BorderSizePixel = 0
+    Container.Parent = self.Holder
+
+    Instance.new("UICorner", Container).CornerRadius =
+        UDim.new(0, 7)
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(0.7, 0, 0, 25)
+    Title.Position = UDim2.new(0, 12, 0, 5)
+    Title.BackgroundTransparency = 1
+    Title.Text = Name
+    Title.TextColor3 = Theme.Text
+    Title.TextSize = 13
+    Title.Font = Enum.Font.GothamSemibold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Container
+
+    local ValueLabel = Instance.new("TextLabel")
+    ValueLabel.Size = UDim2.new(0, 55, 0, 25)
+    ValueLabel.Position = UDim2.new(1, -65, 0, 5)
+    ValueLabel.BackgroundTransparency = 1
+    ValueLabel.Text = tostring(Value)
+    ValueLabel.TextColor3 = Theme.Blue
+    ValueLabel.TextSize = 13
+    ValueLabel.Font = Enum.Font.GothamBold
+    ValueLabel.Parent = Container
+
+    local Bar = Instance.new("TextButton")
+    Bar.Size = UDim2.new(1, -24, 0, 7)
+    Bar.Position = UDim2.new(0, 12, 0, 43)
+    Bar.BackgroundColor3 = Theme.Stroke
+    Bar.Text = ""
+    Bar.AutoButtonColor = false
+    Bar.Parent = Container
+
+    Instance.new("UICorner", Bar).CornerRadius =
+        UDim.new(1, 0)
+
+    local Fill = Instance.new("Frame")
+    Fill.Size = UDim2.new(0, 0, 1, 0)
+    Fill.BackgroundColor3 = Theme.Blue
+    Fill.BorderSizePixel = 0
+    Fill.Parent = Bar
+
+    Instance.new("UICorner", Fill).CornerRadius =
+        UDim.new(1, 0)
+
+    local Knob = Instance.new("Frame")
+    Knob.Size = UDim2.new(0, 15, 0, 15)
+    Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    Knob.Position = UDim2.new(0, 0, 0.5, 0)
+    Knob.BackgroundColor3 = Theme.Text
+    Knob.BorderSizePixel = 0
+    Knob.Parent = Bar
+
+    Instance.new("UICorner", Knob).CornerRadius =
+        UDim.new(1, 0)
+
+    local function SetValue(NewValue)
+
+        Value = math.clamp(
+            math.floor(NewValue),
+            Min,
+            Max
+        )
+
+        local Percent = (Value - Min) / (Max - Min)
+
+        Fill.Size = UDim2.new(Percent, 0, 1, 0)
+        Knob.Position = UDim2.new(Percent, 0, 0.5, 0)
+        ValueLabel.Text = tostring(Value)
+
+        pcall(Callback, Value)
+    end
+
+    local function UpdateFromInput(Input)
+
+        local Percent = math.clamp(
+            (Input.Position.X - Bar.AbsolutePosition.X)
+            / Bar.AbsoluteSize.X,
+            0,
+            1
+        )
+
+        SetValue(Min + (Max - Min) * Percent)
+    end
+
+    local Sliding = false
+
+    Bar.InputBegan:Connect(function(Input)
+        if Input.UserInputType == Enum.UserInputType.MouseButton1
+        or Input.UserInputType == Enum.UserInputType.Touch then
+            Sliding = true
+            UpdateFromInput(Input)
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(Input)
+        if Sliding and (
+            Input.UserInputType == Enum.UserInputType.MouseMovement
+            or Input.UserInputType == Enum.UserInputType.Touch
+        ) then
+            UpdateFromInput(Input)
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(Input)
+        if Input.UserInputType == Enum.UserInputType.MouseButton1
+        or Input.UserInputType == Enum.UserInputType.Touch then
+            Sliding = false
+        end
+    end)
+
+    SetValue(Min)
+
+    Container.SetValue = SetValue
+    Container.GetValue = function()
+        return Value
+    end
+
+    return Container
+end
+
+--==================================================
+-- DROPDOWN
+--==================================================
+
+function Section:NewDropdown(Name, Description, Options, Callback)
+
+    Callback = Callback or function() end
+    Options = Options or {}
+
+    local Selected = nil
+    local Open = false
+
+    local Container = Instance.new("Frame")
+    Container.Name = Name
+    Container.Size = UDim2.new(1, 0, 0, 42)
+    Container.BackgroundColor3 = Theme.Element
+    Container.BorderSizePixel = 0
+    Container.ClipsDescendants = true
+    Container.Parent = self.Holder
+
+    Instance.new("UICorner", Container).CornerRadius =
+        UDim.new(0, 7)
+
+    local Header = Instance.new("TextButton")
+    Header.Size = UDim2.new(1, 0, 0, 42)
+    Header.BackgroundTransparency = 1
+    Header.Text = ""
+    Header.Parent = Container
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(0.65, 0, 1, 0)
+    Title.Position = UDim2.new(0, 12, 0, 0)
+    Title.BackgroundTransparency = 1
+    Title.Text = Name
+    Title.TextColor3 = Theme.Text
+    Title.TextSize = 13
+    Title.Font = Enum.Font.GothamSemibold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Header
+
+    local SelectedLabel = Instance.new("TextLabel")
+    SelectedLabel.Size = UDim2.new(0.3, -10, 1, 0)
+    SelectedLabel.Position = UDim2.new(0.7, 0, 0, 0)
+    SelectedLabel.BackgroundTransparency = 1
+    SelectedLabel.Text = "Select  ▼"
+    SelectedLabel.TextColor3 = Theme.Blue
+    SelectedLabel.TextSize = 11
+    SelectedLabel.Font = Enum.Font.Gotham
+    SelectedLabel.Parent = Header
+
+    local OptionHolder = Instance.new("Frame")
+    OptionHolder.Position = UDim2.new(0, 8, 0, 45)
+    OptionHolder.Size = UDim2.new(1, -16, 0, 0)
+    OptionHolder.BackgroundTransparency = 1
+    OptionHolder.Parent = Container
+
+    local OptionLayout = Instance.new("UIListLayout")
+    OptionLayout.Padding = UDim.new(0, 5)
+    OptionLayout.Parent = OptionHolder
+
+    local function RefreshOptions()
+
+        for _, Child in ipairs(OptionHolder:GetChildren()) do
+            if Child:IsA("TextButton") then
+                Child:Destroy()
+            end
+        end
+
+        for _, Option in ipairs(Options) do
+
+            local OptionButton = Instance.new("TextButton")
+            OptionButton.Size = UDim2.new(1, 0, 0, 30)
+            OptionButton.BackgroundColor3 = Theme.Panel
+            OptionButton.Text = tostring(Option)
+            OptionButton.TextColor3 = Theme.Text
+            OptionButton.TextSize = 12
+            OptionButton.Font = Enum.Font.Gotham
+            OptionButton.Parent = OptionHolder
+
+            Instance.new("UICorner", OptionButton).CornerRadius =
+                UDim.new(0, 5)
+
+            OptionButton.MouseButton1Click:Connect(function()
+
+                Selected = Option
+                SelectedLabel.Text = tostring(Option)
+
+                Open = false
+                Container.Size = UDim2.new(1, 0, 0, 42)
+
+                pcall(Callback, Option)
+            end)
+        end
+
+        OptionHolder.Size = UDim2.new(
+            1, -16, 0, OptionLayout.AbsoluteContentSize.Y
+        )
+    end
+
+    Header.MouseButton1Click:Connect(function()
+
+        Open = not Open
+
+        if Open then
+            Container.Size = UDim2.new(
+                1, 0, 0, 50 + OptionLayout.AbsoluteContentSize.Y
+            )
+        else
+            Container.Size = UDim2.new(1, 0, 0, 42)
+        end
+    end)
+
+    RefreshOptions()
+
+    Container.Refresh = function(NewOptions)
+        Options = NewOptions or {}
+        RefreshOptions()
+    end
+
+    Container.GetValue = function()
+        return Selected
+    end
+
+    return Container
+end
+
+--==================================================
+-- TEXTBOX
+--==================================================
+
+function Section:NewTextBox(Name, Description, Callback)
+
+    Callback = Callback or function() end
+
+    local Container = Instance.new("Frame")
+    Container.Name = Name
+    Container.Size = UDim2.new(1, 0, 0, 65)
+    Container.BackgroundColor3 = Theme.Element
+    Container.BorderSizePixel = 0
+    Container.Parent = self.Holder
+
+    Instance.new("UICorner", Container).CornerRadius =
+        UDim.new(0, 7)
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(0.4, 0, 0, 25)
+    Title.Position = UDim2.new(0, 12, 0, 5)
+    Title.BackgroundTransparency = 1
+    Title.Text = Name
+    Title.TextColor3 = Theme.Text
+    Title.TextSize = 13
+    Title.Font = Enum.Font.GothamSemibold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Container
+
+    local TextBox = Instance.new("TextBox")
+    TextBox.Size = UDim2.new(0.5, 0, 0, 32)
+    TextBox.Position = UDim2.new(0.48, 0, 0, 16)
+    TextBox.BackgroundColor3 = Theme.Panel
+    TextBox.Text = ""
+    TextBox.PlaceholderText = "Enter text..."
+    TextBox.PlaceholderColor3 = Theme.SubText
+    TextBox.TextColor3 = Theme.Text
+    TextBox.TextSize = 12
+    TextBox.Font = Enum.Font.Gotham
+    TextBox.ClearTextOnFocus = false
+    TextBox.Parent = Container
+
+    Instance.new("UICorner", TextBox).CornerRadius =
+        UDim.new(0, 5)
+
+    TextBox.FocusLost:Connect(function(EnterPressed)
+        if EnterPressed then
+            pcall(Callback, TextBox.Text)
+        end
+    end)
+
+    Container.GetValue = function()
+        return TextBox.Text
+    end
+
+    return Container
+end
+
+--==================================================
+-- END OF PART 4
+-- PART 5 WILL CONTINUE BELOW
+--==================================================
+
+--==================================================
+-- ZTE HUB | CYBER UI
+-- PART 5 - KEYBIND & FINAL INITIALIZATION
+--==================================================
+
+--==================================================
+-- KEYBIND
+--==================================================
+
+function Section:NewKeybind(Name, Description, DefaultKey, Callback)
+
+    Callback = Callback or function() end
+
+    local CurrentKey = DefaultKey or Enum.KeyCode.RightShift
+    local Listening = false
+
+    local Container = Instance.new("TextButton")
+    Container.Name = Name
+    Container.Size = UDim2.new(1, 0, 0, 42)
+    Container.BackgroundColor3 = Theme.Element
+    Container.Text = ""
+    Container.AutoButtonColor = false
+    Container.Parent = self.Holder
+
+    Instance.new("UICorner", Container).CornerRadius =
+        UDim.new(0, 7)
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(0.65, 0, 1, 0)
+    Title.Position = UDim2.new(0, 12, 0, 0)
+    Title.BackgroundTransparency = 1
+    Title.Text = Name
+    Title.TextColor3 = Theme.Text
+    Title.TextSize = 13
+    Title.Font = Enum.Font.GothamSemibold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Container
+
+    local KeyLabel = Instance.new("TextLabel")
+    KeyLabel.Size = UDim2.new(0, 95, 0, 27)
+    KeyLabel.Position = UDim2.new(1, -105, 0.5, -13)
+    KeyLabel.BackgroundColor3 = Theme.Panel
+    KeyLabel.Text = CurrentKey.Name
+    KeyLabel.TextColor3 = Theme.Blue
+    KeyLabel.TextSize = 11
+    KeyLabel.Font = Enum.Font.GothamBold
+    KeyLabel.Parent = Container
+
+    Instance.new("UICorner", KeyLabel).CornerRadius =
+        UDim.new(0, 5)
+
+    Container.MouseButton1Click:Connect(function()
+        Listening = true
+        KeyLabel.Text = "Press key..."
+    end)
+
+    local Connection
+
+    Connection = UIS.InputBegan:Connect(function(Input, Processed)
+
+        if Listening then
+            if Input.UserInputType == Enum.UserInputType.Keyboard then
+                CurrentKey = Input.KeyCode
+                KeyLabel.Text = CurrentKey.Name
+                Listening = false
+            end
+            return
+        end
+
+        if not Processed
+        and Input.UserInputType == Enum.UserInputType.Keyboard
+        and Input.KeyCode == CurrentKey then
+
+            pcall(Callback, CurrentKey)
+        end
+    end)
+
+    Container.Destroying:Connect(function()
+        if Connection then
+            Connection:Disconnect()
+        end
+    end)
+
+    Container.GetKey = function()
+        return CurrentKey
+    end
+
+    return Container
+end
+
+--==================================================
+-- CREATE ZTE HUB
+--==================================================
+
+local ZTE = Library.CreateLib("ZTE HUB", "CyberTheme")
+
+--==================================================
+-- HOME TAB
+--==================================================
+
+local Home = ZTE:NewTab("Home")
+
+local Welcome = Home:NewSection("♛  WELCOME TO ZTE")
+
+Welcome:NewLabel("ZTE HUB - CYBER EDITION")
+Welcome:NewLabel("Version: 1.0")
+Welcome:NewLabel("Status: UI Loaded")
+
+Welcome:NewButton("Test Button", "UI test", function()
+    print("ZTE HUB: Button clicked!")
+end)
+
+--==================================================
+-- PLAYER TAB
+--==================================================
+
+local PlayerTab = ZTE:NewTab("Player")
+
+local PlayerSection = PlayerTab:NewSection("PLAYER SETTINGS")
+
+PlayerSection:NewToggle("Example Toggle", "UI test", function(Value)
+    print("Toggle:", Value)
+end)
+
+PlayerSection:NewSlider("Example Slider", "UI test", 100, 0, function(Value)
+    print("Slider:", Value)
+end)
+
+PlayerSection:NewTextBox("Player Name", "UI test", function(Text)
+    print("Text:", Text)
+end)
+
+--==================================================
+-- VISUALS TAB
+--==================================================
+
+local Visuals = ZTE:NewTab("Visuals")
+
+local VisualSection = Visuals:NewSection("VISUAL SETTINGS")
+
+VisualSection:NewToggle("Example Visual", "UI test", function(Value)
+    print("Visual:", Value)
+end)
+
+VisualSection:NewDropdown(
+    "Select Theme",
+    "UI test",
+    {"Cyber Blue", "Purple", "Dark"},
+    function(Option)
+        print("Selected:", Option)
+    end
+)
+
+--==================================================
+-- SETTINGS TAB
+--==================================================
+
+local Settings = ZTE:NewTab("Settings")
+
+local SettingsSection = Settings:NewSection("UI SETTINGS")
+
+SettingsSection:NewKeybind(
+    "Toggle UI",
+    "Change visibility key",
+    Enum.KeyCode.RightShift,
+    function()
+        ZTE.Main.Visible = not ZTE.Main.Visible
+    end
+)
+
+SettingsSection:NewLabel("ZTE HUB")
+SettingsSection:NewLabel("Created by ZTE")
+
+--==================================================
+-- FINAL
+--==================================================
+
+print("================================")
+print("       ZTE HUB CYBER UI")
+print("       SUCCESSFULLY LOADED")
+print("================================")
